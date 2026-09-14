@@ -11,13 +11,23 @@
           "enable_heat_control": "Enable on/off controls",
           "enable_set_temperature": "Enable target temperature writes"
         }
+      },
+      "reconfigure": {
+        "title": "Change kettle connection",
+        "description": "Enter the kettle's current host or IP address and port.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect"
+      "cannot_connect": "Failed to connect",
+      "already_configured": "This host is already configured for another kettle"
     },
     "abort": {
-      "already_configured": "This kettle is already configured"
+      "already_configured": "This kettle is already configured",
+      "reconfigure_successful": "Kettle connection updated"
     }
   },
   "options": {

@@ -57,6 +57,17 @@ During setup, provide:
   - `enable_heat_control`
   - `enable_set_temperature`
 
+To change an existing kettle's IP address:
+
+1. Go to **Settings -> Devices & Services -> Fellow Stagg Pro**.
+2. Open the menu next to the kettle's integration entry and select **Reconfigure**.
+3. Enter the new host/IP and port, then submit.
+
+The integration checks the connection before saving and reloads automatically.
+Existing entities, history, and automation references stay intact. If the connection
+fails, the previous address remains saved. This changes the address Home Assistant
+connects to; it does not assign an IP address to the kettle.
+
 ## Guardrails and Safety
 
 - On/off controls are enabled by default (`enable_heat_control`).

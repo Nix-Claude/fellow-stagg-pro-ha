@@ -8,11 +8,17 @@ from typing import TypeAlias
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FellowStaggProApi
-from .const import CONF_SCAN_INTERVAL, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN, PLATFORMS
+from .const import (
+    CONF_SCAN_INTERVAL,
+    DEFAULT_PORT,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    PLATFORMS,
+)
 from .coordinator import FellowStaggProDataUpdateCoordinator
 
 
@@ -35,7 +41,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: FellowStaggProConfigEntry) -> bool:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: FellowStaggProConfigEntry
+) -> bool:
     """Set up Fellow Stagg Pro from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
@@ -55,22 +63,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: FellowStaggProConfigEntr
     hass.data[DOMAIN][entry.entry_id] = runtime_data
     if hasattr(entry, "runtime_data"):
         entry.runtime_data = runtime_data
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: FellowStaggProConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: FellowStaggProConfigEntry
+) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return unloaded
-
-
-async def async_reload_entry(hass: HomeAssistant, entry: FellowStaggProConfigEntry) -> None:
-    """Reload config entry after options update."""
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 def get_runtime_data(

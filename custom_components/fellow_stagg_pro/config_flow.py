@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypedDict
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, callback
@@ -24,6 +23,13 @@ from .const import (
     DOMAIN,
     NAME,
 )
+
+
+class ConnectionInput(TypedDict):
+    """Connection details submitted by the reconfigure form."""
+
+    host: str
+    port: int
 
 
 def _user_schema(
@@ -65,7 +71,9 @@ class FellowStaggProConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Return options flow handler."""
         return FellowStaggProOptionsFlow(config_entry)
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle initial setup step."""
         errors: dict[str, str] = {}
 
@@ -75,6 +83,9 @@ class FellowStaggProConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             scan_interval = user_input[CONF_SCAN_INTERVAL]
             enable_heat_control = user_input[CONF_ENABLE_HEAT_CONTROL]
             enable_set_temperature = user_input[CONF_ENABLE_SET_TEMPERATURE]
+
+            if self._host_is_configured(host):
+                return self.async_abort(reason="already_configured")
 
             await self.async_set_unique_id(host.lower())
             self._abort_if_unique_id_configured()
@@ -99,14 +110,67 @@ class FellowStaggProConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    def _host_is_configured(self, host: str, entry_id: str | None = None) -> bool:
+        return any(
+            entry.entry_id != entry_id
+            and entry.data.get(CONF_HOST, "").lower() == host.lower()
+            for entry in self._async_current_entries()
+        )
 
-class FellowStaggProOptionsFlow(config_entries.OptionsFlow):
+    async def async_step_reconfigure(
+        self, user_input: ConnectionInput | None = None
+    ) -> FlowResult:
+        """Update the connection details of an existing kettle."""
+        entry = self._get_reconfigure_entry()
+        host = entry.data[CONF_HOST]
+        port = entry.data.get(CONF_PORT, DEFAULT_PORT)
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            host = user_input[CONF_HOST].strip()
+            port = user_input[CONF_PORT]
+
+            if self._host_is_configured(host, entry.entry_id):
+                errors["base"] = "already_configured"
+            elif await _can_connect(self.hass, host, port):
+                title = entry.title
+                if title == f"{NAME} ({entry.data[CONF_HOST]})":
+                    title = f"{NAME} ({host})"
+
+                # Entity and device IDs depend on the original entry unique ID.
+                return self.async_update_reload_and_abort(
+                    entry,
+                    title=title,
+                    data_updates={CONF_HOST: host, CONF_PORT: port},
+                )
+            else:
+                errors["base"] = "cannot_connect"
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOST, default=host): vol.All(
+                        str, vol.Strip, vol.Length(min=1)
+                    ),
+                    vol.Required(CONF_PORT, default=port): vol.All(
+                        vol.Coerce(int), vol.Range(min=1, max=65535)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+
+class FellowStaggProOptionsFlow(config_entries.OptionsFlowWithReload):
     """Handle options flow for Fellow Stagg Pro."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self._config_entry = config_entry
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Manage options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
